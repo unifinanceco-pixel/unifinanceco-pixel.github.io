@@ -247,7 +247,7 @@
       <div class="formbox">
         <div class="fh">جاهز للتحميل الفوري</div>
         <!-- ⚠️ تأكد أن ملف PDF مرفوع بنفس مجلد هذه الصفحة وبنفس الاسم التالي بالضبط -->
-        <a class="btn btn-gold" style="width:100%;justify-content:center;font-size:18px;" href="checklist-2026.pdf" download>📥 حمّل الكتيّب الآن (PDF)</a>
+        <a class="btn btn-gold" style="width:100%;justify-content:center;font-size:18px;" href="/checklist.pdf" download>📥 حمّل الكتيّب الآن (PDF)</a>
         <div class="formnote">التحميل يبدأ فوراً — بدون تسجيل وبدون بيانات.</div>
 
         <div class="optbox">
@@ -343,7 +343,7 @@ function sendToSheet(type, payload){
 }
 
 /* تسجيل تحميل الكتيّب */
-document.querySelectorAll('a[href$="checklist-2026.pdf"]').forEach(function(a){
+document.querySelectorAll('a[href$="/checklist.pdf"]').forEach(function(a){
   a.addEventListener("click", function(){ sendToSheet("pdf_download", {}); });
 });
 
