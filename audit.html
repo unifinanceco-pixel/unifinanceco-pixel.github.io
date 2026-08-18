@@ -227,7 +227,7 @@
   <div class="wrap">
     <div>Unifinance للمحاسبة والخدمات الإدارية · السيف، البحرين · منذ 2010</div>
     <div style="margin-top:6px;">
-      <a href="https://wa.me/97366688714">+973 6668 8714</a> ·
+      <span data-wa-footer></span> ·
       <a href="https://www.instagram.com/uni.fin.bh/" target="_blank">@uni.fin.bh</a> ·
       <a href="https://uni-finance.com/" target="_blank">uni-finance.com</a>
     </div>
@@ -237,11 +237,19 @@
 
 <div class="sticky" id="sticky">
   <div class="inner">
-    <a class="btn btn-wa" id="stickyBtn" href="https://wa.me/97366688714" target="_blank">💬 فحص مالي مجاني — 15 دقيقة</a>
+    <a class="btn btn-wa" id="stickyBtn" href="#" target="_blank">💬 فحص مالي مجاني — 15 دقيقة</a>
   </div>
 </div>
 
 <script>
+     // ═══════════════════════════════════════════════════════════════
+//  محتوى وسم <script> في audit.html — النسخة المدموجة مع منطق
+//  docs/intake-snippet.js. انسخ من هنا وألصق مكان السكربت القديم.
+//
+//  لتبديل رقم واتساب: غيّر WA_NUMBERS.main أدناه — لا شيء غيره.
+//  ثلاثة مواضع تقرأ منه: الشريط الثابت، زر بطاقة النتيجة، والتذييل.
+// ═══════════════════════════════════════════════════════════════
+
 // ═══════════════════════════════════════════════════════════════
 //  البند المعلّم بـ 1 في آخر المصفوفة = بند حرج.
 //  البنود الحرجة تفرض تقييماً منفصلاً حتى لو كانت النتيجة عالية.
@@ -294,7 +302,52 @@ const DATA = [
     ]},
 ];
 
-const WA  = "https://wa.me/97366688714?text=";
+/* ══ رقم واتساب: مصدر واحد ══
+   تبديل الرقم هنا يسري تلقائياً على المواضع الثلاثة:
+   الشريط الثابت أسفل الصفحة · زر بطاقة النتيجة · نص التذييل.
+   لا تكتب الرقم مباشرة في أي موضع آخر — استدعِ whatsAppLink() دائماً. */
+const WA_NUMBERS = {
+  main: "97366688714",
+};
+const WA_ACTIVE = "main";
+
+/** الرقم النشط. لو أشار WA_ACTIVE لمفتاح غير موجود نرجع لأول رقم
+    بدل إنتاج رابط معطوب يفقدنا العميل بصمت. */
+function activeWhatsApp(){
+  const keys = Object.keys(WA_NUMBERS);
+  if (!keys.length) return "";
+  const n = WA_NUMBERS[WA_ACTIVE];
+  if (n) return n;
+  console.warn('WA_ACTIVE="' + WA_ACTIVE + '" غير موجود — استُخدم "' + keys[0] + '"');
+  return WA_NUMBERS[keys[0]];
+}
+
+/** الموضع الوحيد الذي يبني رابط واتساب. */
+function whatsAppLink(message){
+  const n = activeWhatsApp();
+  return message ? "https://wa.me/" + n + "?text=" + encodeURIComponent(message)
+                 : "https://wa.me/" + n;
+}
+
+/** الرقم بصيغة معروضة (+973 6668 8714). */
+function whatsAppDisplay(){
+  const n = activeWhatsApp();
+  return n.length === 11 ? "+" + n.slice(0,3) + " " + n.slice(3,7) + " " + n.slice(7) : "+" + n;
+}
+
+/** الموضع الثالث: التذييل — يعرض الرقم مقروءاً ورابطاً. */
+function fillWhatsAppFooter(){
+  document.querySelectorAll("[data-wa-footer]").forEach(el => {
+    el.innerHTML = "";
+    const a = document.createElement("a");
+    a.href = whatsAppLink();
+    a.target = "_blank";
+    a.rel = "noopener";
+    a.dir = "ltr";
+    a.textContent = whatsAppDisplay();
+    el.appendChild(a);
+  });
+}
 
 /* ════════ إعداد حفظ البيانات ════════
    ضع هنا رابط Google Apps Script بعد نشره كـ Web app.
@@ -302,17 +355,20 @@ const WA  = "https://wa.me/97366688714?text=";
 const SHEET_URL = "";
 const CAMPAIGN  = "dafatirak";
 
-/* ══ ربط نظام إدارة التسويق MMS ══
-   ضع رابط Vercel ومفتاح الإنتاج بعد الاستضافة.
-   لو تُرك INTAKE_URL فارغاً، الأداة تعمل طبيعي بلا ربط. */
+/* ══ ربط نظام إدارة التسويق MMS ══ */
 const INTAKE_URL = "https://unifinance-mms.vercel.app/api/intake";  // نقطة استقبال النظام
-const INTAKE_KEY = "vBttf8Eoezx3dYaEJLKnh_1uHv04wlGV";  // مفتاح INTAKE_API_KEY من Vercel
+const INTAKE_KEY = "yfcbqhiGYxpxESiLZp5lgj2m9gLot0zo";  // مفتاح INTAKE_API_KEY من Vercel
 
-function sendToMMS(data){
-  if (!INTAKE_URL || !INTAKE_KEY) return;
+/**
+ * إرسال العميل للنظام. يرجع true عند النجاح و false عند الفشل،
+ * حتى تستطيع الواجهة عرض بديل التواصل بدل الفشل الصامت.
+ * لا يُستدعى إلا ومعه اسم ورقم — النقطة ترفض الطلب بدونهما.
+ */
+async function sendToMMS(data){
+  if (!INTAKE_URL || !INTAKE_KEY) return false;
   try {
     const p = new URLSearchParams(location.search);
-    fetch(INTAKE_URL, {
+    const res = await fetch(INTAKE_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -321,15 +377,70 @@ function sendToMMS(data){
       body: JSON.stringify({
         name:         data.name || "",
         phone:        data.phone || "",
+        company:      data.company || null,
         score:        data.score,
         score_max:    data.total || 30,
         gaps:         data.gaps ? data.gaps.split(" · ") : [],
         utm_source:   p.get("utm_source") || "checklist",
+        utm_medium:   p.get("utm_medium") || null,
         utm_campaign: p.get("utm_campaign") || CAMPAIGN,
         page:         "audit-tool"
       })
-    }).catch(()=>{});
-  } catch(e){}
+    });
+    if (!res.ok) { console.warn("MMS: لم يُقبل الطلب", res.status); return false; }
+    return true;
+  } catch(e){
+    console.warn("MMS: تعذّر الإرسال — تجربة الزائر لم تتأثر", e);
+    return false;
+  }
+}
+
+/** رسالة واتساب محمّلة بالنتيجة والفجوات ليبدأ الفريق من نقطة معلومة. */
+function buildWhatsAppMessage(lead){
+  const lines = [("مرحباً، اسمي " + (lead.name || "")).trim()];
+  if (lead.score != null){
+    lines.push("نتيجتي في التقييم: " + lead.score + " من " + (lead.total || 30));
+  }
+  if (lead.gaps){
+    lines.push("المحاور التي أحتاج مساعدة فيها: " + lead.gaps.split(" · ").join("، "));
+  }
+  lines.push("لم تصل بياناتي عبر الموقع، فأرجو التواصل معي.");
+  return lines.join("\n");
+}
+
+/**
+ * شريط تنبيه غير حاجب يُدرَج بعد بطاقة النتيجة.
+ * لا يحجب النتيجة ولا يمنع أي إجراء — يعرض بديل تواصل فقط.
+ */
+function showMMSFallback(lead){
+  const anchor = document.getElementById("rcard");
+  if (!anchor || document.getElementById("mms-fallback")) return;
+
+  const bar = document.createElement("div");
+  bar.id = "mms-fallback";
+  bar.setAttribute("role", "status");
+  bar.style.cssText = [
+    "display:flex","flex-wrap:wrap","align-items:center","justify-content:space-between",
+    "gap:12px","margin-top:12px","padding:13px 15px",
+    "border:1px solid #F0C36D","background:#FFF8E6","border-radius:14px",
+    "font-size:13.5px","line-height:1.7","color:#7A5B00","font-weight:700"
+  ].join(";");
+
+  const txt = document.createElement("span");
+  txt.textContent = "تعذّر إرسال بياناتك — تواصل معنا مباشرة على واتساب";
+
+  const link = document.createElement("a");
+  link.href = whatsAppLink(buildWhatsAppMessage(lead));
+  link.target = "_blank";
+  link.rel = "noopener";
+  link.textContent = "فتح واتساب";
+  link.style.cssText = [
+    "flex-shrink:0","padding:9px 18px","background:#25D366","color:#fff",
+    "border-radius:10px","text-decoration:none","font-weight:800"
+  ].join(";");
+
+  bar.append(txt, link);
+  anchor.insertAdjacentElement("afterend", bar);
 }
 
 /* معرّف زائر داخل الجلسة — يربط سجلاته ببعض بلا هوية شخصية */
@@ -468,7 +579,8 @@ function update(){
     sb.onclick = null;
   } else {
     sb.textContent = "💬 فحص مالي مجاني — 15 دقيقة";
-    sb.setAttribute("href", WA + encodeURIComponent("مرحباً، أبي أحجز جلسة التقييم المالي المجانية"));
+    // الموضع الأول: الشريط الثابت — يقرأ الرقم من المصدر الواحد
+    sb.setAttribute("href", whatsAppLink("مرحباً، أبي أحجز جلسة التقييم المالي المجانية"));
     sb.setAttribute("target", "_blank");
     sb.onclick = () => trackStd("Lead", { source:"sticky_bar" });
   }
@@ -537,7 +649,8 @@ function showResult(n){
     txt = `مرحباً، سويت التقييم الذاتي وطلعت نتيجتي ${n} من ${TOTAL} — أحتاج مساعدة عاجلة بتنظيم دفاتري`;
   }
 
-  waBtn.href = WA + encodeURIComponent(txt);
+  // الموضع الثاني: زر بطاقة النتيجة — يقرأ الرقم من المصدر الواحد
+  waBtn.href = whatsAppLink(txt);
   waBtn.onclick = () => {
     trackStd("Lead", { source:"result_card", score:n, band:band });
     sendToSheet("whatsapp_click", { score:n, band:band });
@@ -593,12 +706,9 @@ function showResult(n){
       unanswered: untouched
     });
 
-    /* إرسال للنظام — بدون اسم أو رقم (مجهول حتى يترك بياناته) */
-    sendToMMS({
-      score: n,
-      total: TOTAL,
-      gaps: miss.map(m => m.nm).join(" · ")
-    });
+    /* ملاحظة: لا نُرسل للنظام هنا. نقطة الاستقبال تتطلب اسماً ورقماً،
+       فالإرسال المجهول كان يُرفض دائماً بـ 422 ويملأ سجل النظام بفشل
+       لا معنى له. النتيجة والفجوات تصل مع النموذج أدناه. */
   }
 }
 
@@ -611,6 +721,8 @@ function resetAll(){
     el.setAttribute("aria-checked", "false");
   });
   document.getElementById("result").classList.remove("show");
+  const fb = document.getElementById("mms-fallback");
+  if (fb) fb.remove();
   try { sessionStorage.removeItem(KEY); } catch(e){}
   update();
   window.scrollTo({ top:0, behavior:"smooth" });
@@ -620,7 +732,7 @@ function resetAll(){
 (function(){
   const btn = document.getElementById("lSend");
   if (!btn) return;
-  btn.addEventListener("click", function(){
+  btn.addEventListener("click", async function(){
     const name  = document.getElementById("lName").value.trim();
     const comp  = document.getElementById("lComp").value.trim();
     const phone = document.getElementById("lPhone").value.replace(/\D/g, "");
@@ -641,38 +753,44 @@ function resetAll(){
     })).filter(x => x.c > 0).sort((a,b) => b.c - a.c).slice(0,3)
       .map(x => x.nm).join(" · ");
 
-    sendToSheet("lead", {
+    const lead = {
       name: name,
       company: comp,
       phone: "973" + digits,
       score: n,
       total: TOTAL,
-      critical_missing: critMissing.length,
       gaps: gaps
-    });
+    };
 
-    /* إرسال العميل للنظام — هذا الإرسال الرئيسي (فيه اسم ورقم) */
-    sendToMMS({
-      name: name,
-      phone: "973" + digits,
-      score: n,
-      total: TOTAL,
-      gaps: gaps
-    });
-
+    sendToSheet("lead", Object.assign({ critical_missing: critMissing.length }, lead));
     trackStd("Lead", { source:"form", score:n });
 
     btn.disabled = true;
-    btn.textContent = "تم الإرسال ✓";
-    btn.style.background = "#1F7A70";
-    msg.className = "lmsg ok";
-    msg.textContent = "وصلتنا بياناتك — بنتواصل معك خلال يوم عمل بخطة معالجة الثغرات.";
+    btn.textContent = "جارٍ الإرسال...";
+
+    /* الإرسال الرئيسي للنظام — ننتظر نتيجته لنعرف هل نعرض البديل */
+    const ok = await sendToMMS(lead);
+
+    if (ok){
+      btn.textContent = "تم الإرسال ✓";
+      btn.style.background = "#1F7A70";
+      msg.className = "lmsg ok";
+      msg.textContent = "وصلتنا بياناتك — بنتواصل معك خلال يوم عمل بخطة معالجة الثغرات.";
+    } else {
+      /* فشل الإرسال: نعرض بديل واتساب ونُبقي الزر متاحاً لإعادة المحاولة */
+      btn.disabled = false;
+      btn.textContent = "أعد المحاولة";
+      msg.className = "lmsg err";
+      msg.textContent = "تعذّر إرسال بياناتك. جرّب مرة ثانية أو تواصل معنا على واتساب مباشرة.";
+      showMMSFallback(lead);
+    }
   });
 })();
 
 build();
 restore();
 update();
+fillWhatsAppFooter();update();
 </script>
 </body>
 </html>
